@@ -36,6 +36,11 @@ Prediction
 
 B  A  B  A  A  E  D  B  A  A  B  C  B  A  E  E  A  B  B  B
 
+Out of sample error
+---
+Accuracy of best model: 99.5%
+Out of sample error rate = 0.6%. 
+
 Code and figures
 ---
 ```{r global_options, include=FALSE}
@@ -48,7 +53,7 @@ knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
 library(caret); library(randomForest); library(rattle)
 library(lattice); library(ggplot2); library(rpart)
 library(rpart.plot); library(RColorBrewer); 
-library(party); library(partykit)
+library(party); library(partykit);
 
 # step 2: Prepare data
 setwd("~/Coursera/Machine_Learning")
@@ -100,6 +105,15 @@ rpart.plot(modFit1, main="Model 1: Recursive partitioning", type=0,
 ```{r}
 modFit2 <- randomForest(classe ~ ., data = trainTrain)
 confusionMatrix(trainTest$classe, predict(modFit2,trainTest, type = "class"))
+```
+
+```{r}
+# Out of sample error rate
+preds <- predict(modFit2,trainTest, type = "class")
+lenPreds <- length(preds)
+outSampleError.accu <- sum(preds == trainTest$classe)/lenPreds
+outSampleError <- 1 - outSampleError.accu
+outSampleError
 ```
 
 ```{r}
