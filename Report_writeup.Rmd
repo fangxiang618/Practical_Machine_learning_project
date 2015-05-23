@@ -1,0 +1,123 @@
+---
+title: "Predicting classe for Participants doing Weight Lifting Exercises"
+author: "Divine Miho"
+date: "May, 2015"
+output: html_document
+---
+
+
+Synopsis
+---
+Six young health participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
+
+Read more: http://groupware.les.inf.puc-rio.br/har#ixzz3azGt8bfY
+
+My goal is to build a prediction model, using the data collected from gadgets atteched to the participants' bodies that predicts the classe of 20 observations. 
+
+How I built the model
+---
+The training data has 160 variables and 19,622 observations. The first seven variables are not relevant to the analysis. The outcome variable is "classe" which is a factor variable with 5 levels. There are numerous variables with missing data. I remove variables with missing data. The final training dataset has 53 variables. I set the seed to 12345.
+
+Cross-validation
+---
+The exercise provides us with training and testing datasets. For cross-validation I split the training dataset into sub-training(trainTrain) = 75% and sub-testing(trainTest) = 25% datasets. The sub-testing dataset will help me measure the accuracy of the model.
+
+Choosing the modeling technique
+---
+My modeling choice was based on the outcome variable type. The outcome variable is an unordered factor variable. For factor variables tree-based models are better than linear models. I fit two models, one with Recursive Partitioning (rpart) and the other with "Random Forests (rf). The advantages of using tree-based modeling include: easy interpretation, better performance in nonlinear settings and more accuracy in the case of random forests. The disadvatages include: risk of overfitting, hard to meassure uncertainity and poor speeds.
+
+Analysis
+---
+The recursive partioning model has an accuracy of 72.3% while the random forest model has an accuracy of 99.5%. Since the random forest model is more accurate, I will use it as my final model to predict the 20 test observations. The expected out of sample error will be small given the accuracy of the selected model.
+
+Prediction
+---
+1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20
+
+B  A  B  A  A  E  D  B  A  A  B  C  B  A  E  E  A  B  B  B
+
+Code and figures
+---
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
+                      echo=TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+# Step 1: load packages
+library(caret); library(randomForest); library(rattle)
+library(lattice); library(ggplot2); library(rpart)
+library(rpart.plot); library(RColorBrewer); 
+library(party); library(partykit)
+
+# step 2: Prepare data
+setwd("~/Coursera/Machine_Learning")
+trainA <- read.table("pml-training.csv", header = TRUE, sep = ",", 
+                     na.strings = c("NA","#DIV/0!", ""))
+testA <- read.table("pml-testing.csv", header = TRUE, sep = ",", 
+                    na.strings = c("NA","#DIV/0!", ""))
+
+# remove variables that wont be used in modeling
+trainB <- trainA[,-c(1:7)]; testB <- testA[,-c(1:7)]
+# Keep columns with complete data
+trainC <- trainB[,colSums(is.na(trainB))==0]
+testC <- testB[,colSums(is.na(testB))==0]
+```
+
+```{r}
+# Data dimensions
+trainDim <- rbind(dim(trainA),dim(trainB), dim(trainC))
+testDim <- rbind(dim(testA),dim(testB), dim(testC))
+cbind(trainDim,testDim)
+```
+
+```{r}
+# Step 3: explore the response variable
+table(trainC$classe)
+```
+
+```{r}
+# Step 4: Cross validation
+set.seed(12345)
+inTrain <- createDataPartition(trainC$classe, p = 0.75, list = FALSE)
+trainTrain <- trainC[inTrain,]
+trainTest <- trainC[-inTrain,]
+```
+
+```{r}
+# Step 5: Fit models
+# Model 1: rPart model
+modFit1 <- rpart(classe ~ ., method = "class", data = trainTrain)
+confusionMatrix(trainTest$classe, predict(modFit1,trainTest, type = "class"))
+```
+
+```{r}
+# Plot tree
+rpart.plot(modFit1, main="Model 1: Recursive partitioning", type=0,
+           extra=2, under=TRUE, faclen=0, cex = 0.7)
+```
+
+```{r}
+modFit2 <- randomForest(classe ~ ., data = trainTrain)
+confusionMatrix(trainTest$classe, predict(modFit2,trainTest, type = "class"))
+```
+
+```{r}
+# prediction
+predTest <- predict(modFit2, newdata = testA, type = "class")
+predTest
+```
+
+```{r}
+# Write files for submission
+pml_write_files = function(x){
+    n = length(x)
+    for(i in 1:n){
+        filename = paste0("problem_id_",i,".txt")
+        write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+    }
+}
+pml_write_files(predTest)
+```
+
+
